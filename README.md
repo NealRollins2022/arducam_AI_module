@@ -1,18 +1,52 @@
-# ArduCAM Mega Zephyr Module (nRF5340-ready)
+# ArduCAM Mega Zephyr Module for nRF5340
 
-This repository is a Zephyr **module** that provides an ArduCAM Mega SPI camera driver (`drivers/video/arducam_mega`) and a sample (`samples/drivers/video/arducam_mega`).
+This module adds support for the ArduCAM Mega SPI camera in the nRF Connect SDK.
 
-## Use as a module (west)
-Add this repo to your `west.yml` (manifest) and `west update`. Zephyr will discover it via `zephyr/module.yml`.
+## Features
+- Manual CS GPIO for precise timing
+- Minimal capture demo that:
+  - Triggers a capture
+  - Polls until done
+  - Reads FIFO length
+  - Logs first 16 bytes of image (JPEG header expected)
 
-## Build the sample
+## Setup
+
+1. Add this module to your NCS workspace via `west.yml`:
+
+```yaml
+- name: arducam_AI_module
+  remote: arducam
+  revision: main
+  path: modules/arducam
 ```
-west build -b nrf5340dk_nrf5340_cpuapp_ns samples/drivers/video/arducam_mega -p always
+
+2. Update your workspace:
+
+```bash
+west update
+```
+
+3. Build the sample:
+
+```bash
+west build -b nrf5340dk_nrf5340_cpuapp_ns modules/arducam/samples/drivers/video/arducam_mega
+```
+
+4. Flash:
+
+```bash
 west flash
 ```
 
-## Enable driver in your app
+## Expected Output
+
+On successful capture:
+
 ```
-CONFIG_VIDEO=y
-CONFIG_ARDUCAM_MEGA=y
+<inf> app: Starting capture...
+<inf> app: Capture complete, FIFO length = 12345 bytes
+<inf> app: FIFO[0:16]: 0xFF 0xD8 0xFF 0xE0 ...
 ```
+
+The `FF D8 FF E0` sequence confirms a valid JPEG header.
