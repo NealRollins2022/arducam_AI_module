@@ -1,0 +1,4 @@
+# Top-level Kconfig for the module
+menu "ArduCAM Mega module"
+rsource "drivers/video/Kconfig"
+endmenu

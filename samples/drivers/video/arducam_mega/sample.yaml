@@ -1,0 +1,9 @@
+sample:
+  name: ArduCAM Mega sample
+tests:
+  sample.arducam_mega:
+    build_only: true
+    platform_allow:
+      - nrf5340dk_nrf5340_cpuapp_ns
+    integration_platforms:
+      - nrf5340dk_nrf5340_cpuapp_ns

@@ -1,0 +1,7 @@
+config ARDUCAM_MEGA
+    bool "ArduCAM Mega SPI Camera driver"
+    depends on SPI && VIDEO
+    default n
+    help
+      Enable support for the ArduCAM Mega SPI camera.
+      Uses Zephyr Video API (V4L2-style). Communicates over SPI.

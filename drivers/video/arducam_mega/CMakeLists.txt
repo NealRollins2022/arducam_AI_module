@@ -1,0 +1,2 @@
+zephyr_library()
+zephyr_library_sources_ifdef(CONFIG_ARDUCAM_MEGA arducam_mega.c)

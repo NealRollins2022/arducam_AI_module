@@ -1,0 +1,38 @@
+/*
+ * nrf5340dk_nrf5340_cpuapp_ns.overlay for ArduCAM Mega on SPI1 with manual CS
+ */
+
+&gpio0 {
+    arducam_cs: arducam_cs {
+        gpios = <25 GPIO_ACTIVE_LOW>; /* P0.25 as manual CS */
+    };
+};
+
+&spi1 {
+    compatible = "nordic,nrf-spim";
+    status = "okay";
+
+    pinctrl-0 = <&spi1_default>;
+    pinctrl-1 = <&spi1_sleep>;
+    pinctrl-names = "default", "sleep";
+
+    arducam0: arducam@0 {
+        compatible = "arducam,mega";
+        reg = <0>;
+        spi-max-frequency = <8000000>;
+        status = "okay";
+        label = "ARDUCAM_MEGA";
+        cs-gpios = <&gpio0 25 GPIO_ACTIVE_LOW>; /* reference only; handled manually */
+    };
+};
+
+&uart0 {
+    status = "okay";   /* console / logging */
+    current-speed = <115200>;
+};
+
+/* Ensure unused peripherals disabled */
+&spi0 { status = "disabled"; };
+&spi2 { status = "disabled"; };
+&i2c0 { status = "disabled"; };
+&i2c1 { status = "disabled"; };
