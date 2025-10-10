@@ -317,7 +317,7 @@ int main(void)
 	uart_irq_callback_user_data_set(console, serial_cb, NULL);
 	uart_irq_rx_enable(console);
 
-	video = DEVICE_DT_GET(DT_NODELABEL(arducam_mega0));
+	video = DEVICE_DT_GET(DT_NODELABEL(arducam0));
 
 	if (!device_is_ready(video)) {
 		LOG_ERR("Video device %s not ready.", video->name);
