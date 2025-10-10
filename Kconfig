@@ -1,15 +1,18 @@
-menuconfig ARDUCAM
-    bool "Enable ArduCAM AI module support"
-    default y
-    help
-      Enable support for the ArduCAM SPI Camera module.
-
-if ARDUCAM
-
-config ARDUCAM_DEBUG
-    bool "Enable debug logging for ArduCAM"
+config VIDEO_ARDUCAM_MEGA
+    bool "Enable Arducam Mega SPI Camera driver"
+    depends on VIDEO && SPI
     default n
     help
-      Enable verbose debug output for the ArduCAM driver.
+      Enable support for the Arducam Mega SPI camera module.
+      Uses Zephyr Video API (V4L2-style). Communicates over SPI.
 
-endif # ARDUCAM
+if VIDEO_ARDUCAM_MEGA
+
+config ARDUCAM_MEGA_DEBUG
+    bool "Enable debug logging for Arducam Mega"
+    default n
+    help
+      Enable verbose debug output for the driver.
+
+endif # VIDEO_ARDUCAM_MEGA
+
