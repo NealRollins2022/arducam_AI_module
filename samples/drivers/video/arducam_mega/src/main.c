@@ -7,8 +7,8 @@
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
 
-#include <zephyr/drivers/video.h>
-#include <zephyr/drivers/video/arducam_mega.h>
+#include <drivers/video.h>
+#include <drivers/video/arducam_mega.h>
 
 #include <zephyr/drivers/uart.h>
 
