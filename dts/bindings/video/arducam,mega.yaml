@@ -1,10 +1,18 @@
-# ARDUCAM_MEGA
-
-# Copyright (c) 2023 Arducam Technology Co., Ltd. <www.arducam.com>
 # SPDX-License-Identifier: Apache-2.0
-
-description: Arducam Mega CMOS video sensor
+description: Arducam Mega SPI camera
 
 compatible: "arducam,mega"
 
 include: spi-device.yaml
+
+properties:
+  cs-gpios:
+    type: phandle-array
+    required: true
+    description: Chip select GPIO used to manually control the Arducam SPI device.
+
+  spi-max-frequency:
+    type: int
+    required: true
+    description: Maximum SPI clock frequency in Hz.
+
