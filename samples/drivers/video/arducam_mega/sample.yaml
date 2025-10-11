@@ -1,9 +1,13 @@
 sample:
-  name: ArduCAM Mega sample
+  name: Arducam Mega Full Featured
 tests:
-  sample.arducam_mega:
+  sample.drivers.video.arducam_mega_full-featured:
     build_only: true
+    tags:
+      - video
+      - camera
     platform_allow:
       - nrf5340dk_nrf5340_cpuapp_ns
     integration_platforms:
       - nrf5340dk_nrf5340_cpuapp_ns
+
