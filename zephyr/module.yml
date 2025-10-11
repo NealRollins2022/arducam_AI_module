@@ -4,3 +4,6 @@ build:
   kconfig: Kconfig
   settings:
     dts_root: .
+    cmake-includes:
+      - include
+
