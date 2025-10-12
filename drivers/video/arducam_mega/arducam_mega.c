@@ -1038,19 +1038,17 @@ static int arducam_mega_init(const struct device *dev)
 	return ret;
 }
 
-#define ARDUCAM_MEGA_INIT(inst)                                                                    \
-	static const struct arducam_mega_config arducam_mega_cfg_##inst = {                        \
-		.bus = SPI_DT_SPEC_INST_GET(inst,                                                  \
-					    SPI_OP_MODE_MASTER | SPI_WORD_SET(8) |                 \
-						    SPI_CS_ACTIVE_HIGH | SPI_LINES_SINGLE |        \
-						    SPI_LOCK_ON,                                   \
-					    0),                                                    \
-	};                                                                                         \
-                                                                                                   \
-	static struct arducam_mega_data arducam_mega_data_##inst;                                  \
-                                                                                                   \
-	DEVICE_DT_INST_DEFINE(inst, &arducam_mega_init, NULL, &arducam_mega_data_##inst,           \
-			      &arducam_mega_cfg_##inst, POST_KERNEL, CONFIG_VIDEO_INIT_PRIORITY,   \
-			      &arducam_mega_driver_api);
+#define ARDUCAM_MEGA_INIT(inst)                                    \
+    static const struct arducam_mega_config arducam_mega_cfg_##inst = { \
+        .bus = SPI_DT_SPEC_INST_GET(inst, SPI_OP_MODE_MASTER | SPI_WORD_SET(8) | SPI_LINES_SINGLE | SPI_LOCK_ON, 0), \
+        .cs_gpio = GPIO_DT_SPEC_INST_GET_OR(inst, cs_gpios, {0}), \
+    };                                                             \
+                                                                    \
+    static struct arducam_mega_data arducam_mega_data_##inst;      \
+                                                                    \
+    DEVICE_DT_INST_DEFINE(inst, &arducam_mega_init, NULL,          \
+                          &arducam_mega_data_##inst, &arducam_mega_cfg_##inst, \
+                          POST_KERNEL, CONFIG_VIDEO_INIT_PRIORITY, \
+                          &arducam_mega_driver_api);
 
 DT_INST_FOREACH_STATUS_OKAY(ARDUCAM_MEGA_INIT)
