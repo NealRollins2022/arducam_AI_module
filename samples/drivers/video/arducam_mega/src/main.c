@@ -1,11 +1,19 @@
-/**
- * Copyright (c) 2023 Arducam Technology Co., Ltd. <www.arducam.com>
+/*
+ * main.c
+ * Arducam demo application with manual CS (pin 25) initialization
  *
- * SPDX-License-Identifier: Apache-2.0
+ * This main expects the Arducam driver to export:
+ *   int arducam_mega_set_cs_by_label(const struct device *dev,
+ *                                    const char *gpio_label,
+ *                                    gpio_pin_t pin, gpio_flags_t flags);
+ *
+ * and the video device node name remains "arducam0".
  */
 
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/gpio.h>
 
 #include <drivers/video.h>
 #include <drivers/video/arducam_mega.h>
@@ -41,7 +49,6 @@ LOG_MODULE_REGISTER(main);
 #define SET_LOWPOWER_MODE        0X60
 
 #define MSG_SIZE 12
-/* queue to store up to 10 messages (aligned to 4-byte boundary) */
 K_MSGQ_DEFINE(uart_msgq, MSG_SIZE, 10, 4);
 
 const struct device *console;
@@ -53,6 +60,7 @@ volatile uint8_t capture_flag;
 
 void serial_cb(const struct device *dev, void *user_data);
 
+/* keep original helper tables from your app */
 const uint32_t pixel_format_table[] = {
 	VIDEO_PIX_FMT_JPEG,
 	VIDEO_PIX_FMT_RGB565,
@@ -69,6 +77,16 @@ const uint8_t resolution_num = sizeof(resolution_table) / 4;
 
 static uint8_t current_resolution;
 static uint8_t take_picture_fmt = 0x1a;
+
+/* === Forward declaration of driver API (if header doesn't expose it) ===
+ * If your new driver header already declares this, you can remove this
+ * forward declaration.
+ */
+extern int arducam_mega_set_cs_by_label(const struct device *dev,
+					const char *gpio_label,
+					gpio_pin_t pin, gpio_flags_t flags);
+
+/* ---------- application functions (unchanged logic) ---------- */
 
 int set_mega_resolution(uint8_t sfmt)
 {
@@ -257,15 +275,17 @@ uint8_t recv_process(uint8_t *buff)
 		video_set_ctrl(video, VIDEO_CID_ARDUCAM_SHARPNESS, &buff[1]);
 		break;
 	case SET_MANUAL_GAIN:
+	{
 		uint16_t gain_value = (buff[1] << 8) | buff[2];
-
 		video_set_ctrl(video, VIDEO_CID_CAMERA_GAIN, &gain_value);
 		break;
+	}
 	case SET_MANUAL_EXPOSURE:
+	{
 		uint32_t exposure_value = (buff[1] << 16) | (buff[2] << 8) | buff[3];
-
 		video_set_ctrl(video, VIDEO_CID_CAMERA_EXPOSURE, &exposure_value);
 		break;
+	}
 	case GET_CAMERA_INFO:
 		report_mega_info();
 		break;
@@ -308,6 +328,7 @@ int main(void)
 	uint8_t recv_buffer[12] = {0};
 	struct video_buffer *buffers[3];
 	int i = 0;
+	int rc;
 
 	console = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
 	if (!device_is_ready(console)) {
@@ -317,11 +338,27 @@ int main(void)
 	uart_irq_callback_user_data_set(console, serial_cb, NULL);
 	uart_irq_rx_enable(console);
 
+	/* video device unchanged - assume driver registers as arducam0 */
 	video = DEVICE_DT_GET(DT_NODELABEL(arducam0));
-
 	if (!device_is_ready(video)) {
-		LOG_ERR("Video device %s not ready.", video->name);
+		LOG_ERR("Video device %s not ready.", video ? video->name : "NULL");
 		return -1;
+	}
+
+	/* --- Configure manual CS (pin 25) before enqueuing buffers / starting stream --- */
+	/* Use the standard gpio0 label from devicetree - adjust if your board differs */
+	const char *gpio_label = DT_LABEL(DT_NODELABEL(gpio0));
+
+	/* Pin 25 (your chosen CS) and active low. Change pin number if needed. */
+	const gpio_pin_t cs_pin = 25;
+	const gpio_flags_t cs_flags = GPIO_ACTIVE_LOW;
+
+	rc = arducam_mega_set_cs_by_label(video, gpio_label, cs_pin, cs_flags);
+	if (rc) {
+		LOG_ERR("Failed to configure manual CS (%s:%d): %d", gpio_label, cs_pin, rc);
+		/* We continue; driver will fall back to automatic CS if available. */
+	} else {
+		LOG_INF("Manual CS configured on %s:%d", gpio_label, cs_pin);
 	}
 
 	/* Alloc video buffers and enqueue for capture */
@@ -334,7 +371,7 @@ int main(void)
 		video_enqueue(video, VIDEO_EP_OUT, buffers[i]);
 	}
 
-	LOG_INF("Mega star");
+	LOG_INF("Mega start");
 
 	printk("- Device name: %s\n", video->name);
 
