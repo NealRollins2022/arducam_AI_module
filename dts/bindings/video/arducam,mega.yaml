@@ -5,4 +5,8 @@ compatible: "arducam,mega"
 
 include: spi-device.yaml
 
-
+properties:
+  cs-gpios:
+    description: "Chip select GPIO for Arducam"
+    type: phandle
+    required: false
