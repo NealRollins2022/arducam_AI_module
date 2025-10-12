@@ -345,15 +345,17 @@ int main(void)
 		return -1;
 	}
 
-	/* --- Configure manual CS (pin 25) before enqueuing buffers / starting stream --- */
-	/* Use the standard gpio0 label from devicetree - adjust if your board differs */
-	const char *gpio_label = DT_LABEL(DT_NODELABEL(gpio0));
-
-	/* Pin 25 (your chosen CS) and active low. Change pin number if needed. */
-	const gpio_pin_t cs_pin = 25;
-	const gpio_flags_t cs_flags = GPIO_ACTIVE_LOW;
-
-	rc = arducam_mega_set_cs_by_label(video, gpio_label, cs_pin, cs_flags);
+/* --- Configure manual CS (pin 25) --- */
+		const struct device *gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
+		if (!device_is_ready(gpio_dev)) {
+		    LOG_ERR("gpio0 not ready");
+		    return -1;
+		}
+		
+		const gpio_pin_t cs_pin = 25;
+		const gpio_flags_t cs_flags = GPIO_ACTIVE_LOW;
+		
+		rc = arducam_mega_set_cs_by_dev(video, gpio_dev, cs_pin, cs_flags);
 	if (rc) {
 		LOG_ERR("Failed to configure manual CS (%s:%d): %d", gpio_label, cs_pin, rc);
 		/* We continue; driver will fall back to automatic CS if available. */
