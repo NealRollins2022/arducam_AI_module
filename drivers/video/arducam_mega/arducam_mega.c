@@ -9,7 +9,7 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/spi.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/drivers/video.h>
+#include <drivers/video.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/kernel.h>
 
@@ -154,3 +154,4 @@ static struct arducam_mega_data arducam_mega_data_##inst; \
 DEVICE_DT_INST_DEFINE(inst, &arducam_mega_init, NULL, &arducam_mega_data_##inst, &arducam_mega_cfg_##inst, POST_KERNEL, CONFIG_VIDEO_INIT_PRIORITY, NULL);
 
 DT_INST_FOREACH_STATUS_OKAY(ARDUCAM_MEGA_INIT)
+
