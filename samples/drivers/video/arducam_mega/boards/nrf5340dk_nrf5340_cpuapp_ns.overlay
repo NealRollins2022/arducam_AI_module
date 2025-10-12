@@ -1,44 +1,57 @@
-&i2c0 {	status = "disabled";};
-&spi0 {	status = "disabled";};
-&i2c1 {	status = "disabled";};
+/ {
+    chosen {
+        zephyr,console = &uart0;
+    };
 
-&uart0 {
-    status = "okay";   /* console / logging */
-    current-speed = <115200>;
+    aliases {
+        arducam0 = &arducam0;
+    };
 };
-	
-&spi1 {
-    compatible = "nordic,nrf-spim";
-	status = "okay";
-	pinctrl-0 = <&spi1_default>;
-	pinctrl-1 = <&spi1_sleep>;
-	pinctrl-names = "default", "sleep";
-	cs-gpios = <&gpio0 25 GPIO_ACTIVE_LOW>;
 
- arducam0: arducam@0 {
-        compatible = "arducam,mega";
-        reg = <0>;
-        spi-max-frequency = <4000000>;
+/* Enable GPIO0 for manual CS */
+&gpio0 {
+    status = "okay";
+
+    cs_arducam0: cs_arducam0 {
+        gpios = <25 GPIO_ACTIVE_LOW>;
+        gpio-hog;       /* Required so Zephyr configures it automatically */
+        output-high;    /* Start with CS high */
         status = "okay";
-     	
-     
+    };
 };
-};
-&pinctrl {
-	spi1_default: spi1_default {
-		group1 {
-				psels = <NRF_PSEL(SPIM_SCK, 0, 6)>,
-						<NRF_PSEL(SPIM_MOSI, 0, 7)>,
-						<NRF_PSEL(SPIM_MISO, 0, 26)>;
-		};
-	};
 
-	spi1_sleep: spi1_sleep {
-		group1 {
-				psels = <NRF_PSEL(SPIM_SCK, 0, 6)>,
-						<NRF_PSEL(SPIM_MOSI, 0, 7)>,
-						<NRF_PSEL(SPIM_MISO, 0, 26)>;
-				low-power-enable;
-		};
-	};
+/* SPI1 node */
+&spi1 {
+    status = "okay";
+    pinctrl-0 = <&spi1_default>;
+    pinctrl-1 = <&spi1_sleep>;
+    pinctrl-names = "default", "sleep";
+
+    /* Arducam Mega child without CS gpio */
+    arducam0: arducam_mega@0 {
+        compatible = "arducam,mega";
+        reg = <0>;                  /* SPI chip select handled manually */
+        spi-max-frequency = <8000000>;
+        status = "okay";
+    };
+};
+
+/* Optional pinctrl groups */
+&pinctrl {
+    spi1_default: spi1_default {
+        group1 {
+            psels = <NRF_PSEL(SPIM_SCK, 0, 6)>,
+                    <NRF_PSEL(SPIM_MOSI, 0, 7)>,
+                    <NRF_PSEL(SPIM_MISO, 0, 26)>;
+        };
+    };
+
+    spi1_sleep: spi1_sleep {
+        group1 {
+            psels = <NRF_PSEL(SPIM_SCK, 0, 6)>,
+                    <NRF_PSEL(SPIM_MOSI, 0, 7)>,
+                    <NRF_PSEL(SPIM_MISO, 0, 26)>;
+            low-power-enable;
+        };
+    };
 };
