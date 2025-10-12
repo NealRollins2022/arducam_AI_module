@@ -51,7 +51,27 @@ struct arducam_mega_data {
 
 /* --- Helper SPI functions with manual CS --- */
 
-static int arducam_mega_write_reg(const struct arducam_mega_config *cfg, uint8_t reg_addr, uint8_t value)
+/* helper: set CS if available */
+static inline void arducam_cs_set(const struct gpio_dt_spec *cs, int val)
+{
+    if (cs == NULL) {
+        return;
+    }
+    if (cs->port == NULL) {
+        return;
+    }
+    /* device_is_ready check is optional if you configured during init,
+     * but safe to do here anyway.
+     */
+    if (!device_is_ready(cs->port)) {
+        LOG_WRN("CS gpio device not ready");
+        return;
+    }
+    gpio_pin_set_dt(cs, val);
+}
+
+static int arducam_mega_write_reg(const struct arducam_mega_config *cfg,
+                                  uint8_t reg_addr, uint8_t value)
 {
     uint8_t tries = 3;
     reg_addr |= 0x80;
@@ -63,12 +83,12 @@ static int arducam_mega_write_reg(const struct arducam_mega_config *cfg, uint8_t
     struct spi_buf_set tx_bufs = {.buffers = tx_buf, .count = 2};
 
     while (tries--) {
-        gpio_pin_set_dt(&cfg->cs_gpio, 0);
+        arducam_cs_set(&cfg->cs_gpio, 0);
         if (!spi_write_dt(&cfg->bus, &tx_bufs)) {
-            gpio_pin_set_dt(&cfg->cs_gpio, 1);
+            arducam_cs_set(&cfg->cs_gpio, 1);
             return 0;
         }
-        gpio_pin_set_dt(&cfg->cs_gpio, 1);
+        arducam_cs_set(&cfg->cs_gpio, 1);
         k_msleep(5);
     }
     LOG_ERR("failed to write 0x%x to 0x%x", value, reg_addr);
@@ -87,12 +107,12 @@ static int arducam_mega_read_reg(const struct arducam_mega_config *cfg, uint8_t 
     struct spi_buf_set rx_bufs = {.buffers = rx_buf, .count = 1};
 
     while (tries--) {
-        gpio_pin_set_dt(&cfg->cs_gpio, 0);
+        arducam_cs_set(&cfg->cs_gpio, 0);
         if (!spi_transceive_dt(&cfg->bus, &tx_bufs, &rx_bufs)) {
-            gpio_pin_set_dt(&cfg->cs_gpio, 1);
+            arducam_cs_set(&cfg->cs_gpio, 1);
             return value;
         }
-        gpio_pin_set_dt(&cfg->cs_gpio, 1);
+        arducam_cs_set(&cfg->cs_gpio, 1);
         k_msleep(5);
     }
     LOG_ERR("failed to read 0x%x register", reg_addr);
@@ -116,9 +136,9 @@ static int arducam_mega_read_block(const struct arducam_mega_config *cfg,
     struct spi_buf_set tx_bufs = {.buffers = tx_buf, .count = 1};
     struct spi_buf_set rx_bufs = {.buffers = rx_buf, .count = 2};
 
-    gpio_pin_set_dt(&cfg->cs_gpio, 0);
+    arducam_cs_set(&cfg->cs_gpio, 0);
     int ret = spi_transceive_dt(&cfg->bus, &tx_bufs, &rx_bufs);
-    gpio_pin_set_dt(&cfg->cs_gpio, 1);
+    arducam_cs_set(&cfg->cs_gpio, 1);
 
     return ret;
 }
@@ -129,32 +149,43 @@ static int arducam_mega_init(const struct device *dev)
 {
     const struct arducam_mega_config *cfg = dev->config;
     struct arducam_mega_data *data = dev->data;
+    int rc = 0;
 
     data->dev = dev;
     data->fifo_first_read = 1;
     data->fifo_length = 0;
     data->stream_on = 0;
 
-    /* configure CS pin high manually */
+    /* configure CS pin high manually if provided */
     if (cfg->cs_gpio.port) {
-        gpio_pin_configure_dt(&cfg->cs_gpio, GPIO_OUTPUT_HIGH);
+        if (!device_is_ready(cfg->cs_gpio.port)) {
+            LOG_ERR("CS gpio device not ready for %s", dev->name);
+        } else {
+            rc = gpio_pin_configure_dt(&cfg->cs_gpio, GPIO_OUTPUT_HIGH);
+            if (rc) {
+                LOG_ERR("Failed to configure CS pin (%d)", rc);
+            } else {
+                /* ensure it starts high */
+                gpio_pin_set_dt(&cfg->cs_gpio, 1);
+                LOG_DBG("CS gpio configured on port %p pin %u", cfg->cs_gpio.port,
+                        cfg->cs_gpio.pin);
+            }
+        }
+    } else {
+        LOG_DBG("No CS gpio provided (manual CS disabled)");
     }
 
     return 0;
 }
-
 /* --- Device instance macro --- */
-
 #define ARDUCAM_MEGA_INIT(inst) \
 static const struct arducam_mega_config arducam_mega_cfg_##inst = { \
     .bus = SPI_DT_SPEC_INST_GET(inst, SPI_OP_MODE_MASTER | SPI_WORD_SET(8) | SPI_LINES_SINGLE, 0), \
-    .cs_gpio = { \
-        .port = DEVICE_DT_GET(DT_NODELABEL(gpio0)), \
-        .pin = 25, \
-        .dt_flags = GPIO_ACTIVE_LOW, \
-    }, \
+    .cs_gpio = GPIO_DT_SPEC_GET_OR(DT_NODELABEL(cs_arducam##inst), gpios, {0}), \
 }; \
 static struct arducam_mega_data arducam_mega_data_##inst; \
 DEVICE_DT_INST_DEFINE(inst, &arducam_mega_init, NULL, &arducam_mega_data_##inst, &arducam_mega_cfg_##inst, POST_KERNEL, CONFIG_VIDEO_INIT_PRIORITY, NULL);
 
+
 DT_INST_FOREACH_STATUS_OKAY(ARDUCAM_MEGA_INIT)
+
