@@ -352,10 +352,8 @@ int main(void)
 	rc = arducam_mega_set_cs_by_label(video, "gpio0", cs_pin, cs_flags);
 		
 	if (rc) {
-		LOG_ERR("Failed to configure manual CS (%s:%d): %d", gpio_label, cs_pin, rc);
-		/* We continue; driver will fall back to automatic CS if available. */
-	} else {
-		LOG_INF("Manual CS configured on %s:%d", gpio_label, cs_pin);
+    LOG_ERR("Failed to set CS via label");
+    return -1;
 	}
 
 	/* Alloc video buffers and enqueue for capture */
