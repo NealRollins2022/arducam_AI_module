@@ -6,8 +6,8 @@
 
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
-#include <zephyr/drivers/video.h>
-#include <zephyr/drivers/video/arducam_mega.h>
+#include <drivers/video.h>
+#include <drivers/video/arducam_mega.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/logging/log.h>
 #include <string.h>
@@ -205,3 +205,4 @@ int main(void)
         k_msleep(1);
     }
 }
+
