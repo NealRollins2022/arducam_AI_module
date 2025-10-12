@@ -93,8 +93,10 @@ struct mega_sdk_data {
 };
 
 struct arducam_mega_config {
-	struct spi_dt_spec bus;
+    struct spi_dt_spec bus;
+    struct gpio_dt_spec cs_gpio;  // NEW: manual CS pin
 };
+
 
 struct arducam_mega_data {
 	const struct device *dev;
@@ -172,6 +174,13 @@ static struct video_format_cap fmts[] = {
 };
 
 #define SUPPORT_RESOLUTION_NUM 9
+static inline void cs_select(const struct arducam_mega_config *cfg) {
+    gpio_pin_set_dt(&cfg->cs_gpio, 0);  // active low
+}
+
+static inline void cs_deselect(const struct arducam_mega_config *cfg) {
+    gpio_pin_set_dt(&cfg->cs_gpio, 1);
+}
 
 static uint8_t support_resolution[SUPPORT_RESOLUTION_NUM] = {
 	MEGA_RESOLUTION_96X96,   MEGA_RESOLUTION_128X128, MEGA_RESOLUTION_QVGA,
@@ -179,87 +188,82 @@ static uint8_t support_resolution[SUPPORT_RESOLUTION_NUM] = {
 	MEGA_RESOLUTION_UXGA,    MEGA_RESOLUTION_FHD,     MEGA_RESOLUTION_NONE,
 };
 
-static int arducam_mega_write_reg(const struct spi_dt_spec *spec, uint8_t reg_addr, uint8_t value)
+static int arducam_mega_write_reg(const struct arducam_mega_config *cfg,
+                                  uint8_t reg_addr, uint8_t value)
 {
-	uint8_t tries = 3;
+    uint8_t tries = 3;
+    reg_addr |= 0x80;
 
-	reg_addr |= 0x80;
+    struct spi_buf tx_buf[2] = {
+        {.buf = &reg_addr, .len = 1},
+        {.buf = &value, .len = 1},
+    };
+    struct spi_buf_set tx_bufs = {.buffers = tx_buf, .count = 2};
 
-	struct spi_buf tx_buf[2] = {
-		{.buf = &reg_addr, .len = 1},
-		{.buf = &value, .len = 1},
-	};
+    while (tries--) {
+        cs_select(cfg);
+        int ret = spi_write_dt(&cfg->bus, &tx_bufs);
+        cs_deselect(cfg);
 
-	struct spi_buf_set tx_bufs = {.buffers = tx_buf, .count = 2};
+        if (ret == 0) {
+            return 0;
+        }
+        k_msleep(5);
+    }
 
-	while (tries--) {
-		if (!spi_write_dt(spec, &tx_bufs)) {
-			return 0;
-		}
-		/* If writing failed wait 5ms before next attempt */
-		k_msleep(5);
-	}
-	LOG_ERR("failed to write 0x%x to 0x%x", value, reg_addr);
-
-	return -1;
+    LOG_ERR("failed to write 0x%x to 0x%x", value, reg_addr);
+    return -1;
 }
 
-static int arducam_mega_read_reg(const struct spi_dt_spec *spec, uint8_t reg_addr)
+
+static int arducam_mega_read_reg(const struct arducam_mega_config *cfg, uint8_t reg_addr)
 {
-	uint8_t tries = 3;
-	uint8_t value;
-	uint8_t ret;
+    uint8_t tries = 3;
+    uint8_t value;
+    reg_addr &= 0x7F;
 
-	reg_addr &= 0x7F;
+    struct spi_buf tx_buf[] = {{.buf = &reg_addr, .len = 1}};
+    struct spi_buf_set tx_bufs = {.buffers = tx_buf, .count = 1};
+    struct spi_buf rx_buf[] = {{.buf = &value, .len = 1}};
+    struct spi_buf_set rx_bufs = {.buffers = rx_buf, .count = 1};
 
-	struct spi_buf tx_buf[] = {
-		{.buf = &reg_addr, .len = 1},
-	};
+    while (tries--) {
+        cs_select(cfg);
+        int ret = spi_transceive_dt(&cfg->bus, &tx_bufs, &rx_bufs);
+        cs_deselect(cfg);
 
-	struct spi_buf_set tx_bufs = {.buffers = tx_buf, .count = 1};
+        if (ret == 0) {
+            return value;
+        }
+        k_msleep(5);
+    }
 
-	struct spi_buf rx_buf[] = {
-		{.buf = &value, .len = 1},
-		{.buf = &value, .len = 1},
-		{.buf = &value, .len = 1},
-	};
-
-	struct spi_buf_set rx_bufs = {.buffers = rx_buf, .count = 3};
-
-	while (tries--) {
-		ret = spi_transceive_dt(spec, &tx_bufs, &rx_bufs);
-		if (!ret) {
-			return value;
-		}
-
-		/* If reading failed wait 5ms before next attempt */
-		k_msleep(5);
-	}
-	LOG_ERR("failed to read 0x%x register", reg_addr);
-
-	return -1;
+    LOG_ERR("failed to read 0x%x register", reg_addr);
+    return -1;
 }
 
-static int arducam_mega_read_block(const struct spi_dt_spec *spec, uint8_t *img_buff,
-				   uint32_t img_len, uint8_t first)
+
+static int arducam_mega_read_block(const struct arducam_mega_config *cfg,
+                                   uint8_t *img_buff, uint32_t img_len, uint8_t first)
 {
-	uint8_t cmd_fifo_read[] = {BURST_FIFO_READ, 0x00};
-	uint8_t buf_len = first == 0 ? 1 : 2;
+    uint8_t cmd_fifo_read[] = {BURST_FIFO_READ, 0x00};
+    uint8_t buf_len = first ? 2 : 1;
 
-	struct spi_buf tx_buf[] = {
-		{.buf = cmd_fifo_read, .len = buf_len},
-	};
+    struct spi_buf tx_buf[] = {{.buf = cmd_fifo_read, .len = buf_len}};
+    struct spi_buf_set tx_bufs = {.buffers = tx_buf, .count = 1};
+    struct spi_buf rx_buf[2] = {
+        {.buf = cmd_fifo_read, .len = buf_len},
+        {.buf = img_buff, .len = img_len},
+    };
+    struct spi_buf_set rx_bufs = {.buffers = rx_buf, .count = 2};
 
-	struct spi_buf_set tx_bufs = {.buffers = tx_buf, .count = 1};
+    cs_select(cfg);
+    int ret = spi_transceive_dt(&cfg->bus, &tx_bufs, &rx_bufs);
+    cs_deselect(cfg);
 
-	struct spi_buf rx_buf[2] = {
-		{.buf = cmd_fifo_read, .len = buf_len},
-		{.buf = img_buff, .len = img_len},
-	};
-	struct spi_buf_set rx_bufs = {.buffers = rx_buf, .count = 2};
-
-	return spi_transceive_dt(spec, &tx_bufs, &rx_bufs);
+    return ret;
 }
+
 
 static int arducam_mega_await_bus_idle(const struct spi_dt_spec *spec, uint8_t tries)
 {
@@ -981,7 +985,11 @@ static int arducam_mega_init(const struct device *dev)
 
 	struct video_format fmt;
 	int ret = 0;
-
+	if (!device_is_ready(cfg->cs_gpio.port)) {
+    LOG_ERR("CS GPIO device not ready");
+    return -ENODEV;
+	}
+	gpio_pin_configure_dt(&cfg->cs_gpio, GPIO_OUTPUT_HIGH);
 	if (!spi_is_ready_dt(&cfg->bus)) {
 		LOG_ERR("%s: device is not ready", cfg->bus.bus->name);
 		return -ENODEV;
