@@ -1,3 +1,4 @@
+
 / {
     chosen {
         zephyr,console = &uart0;
@@ -13,9 +14,9 @@
     status = "okay";
 
     cs_arducam0: cs_arducam0 {
-        gpios = <&gpio0 25 GPIO_ACTIVE_LOW>; /* Correct phandle + pin */
-        gpio-hog;       /* Zephyr auto config */
-        output-high;    /* Start high */
+        gpios = <25 1>;   /* pin 25, active low */
+        gpio-hog;
+        output-high;
         status = "okay";
     };
 };
@@ -27,16 +28,15 @@
     pinctrl-1 = <&spi1_sleep>;
     pinctrl-names = "default", "sleep";
 
-    /* Arducam Mega child without CS gpio */
     arducam0: arducam_mega@0 {
         compatible = "arducam,mega";
-        reg = <0>;                  /* SPI chip select handled manually */
+        reg = <0>;                  /* SPI CS handled manually */
         spi-max-frequency = <8000000>;
         status = "okay";
     };
 };
 
-/* Optional pinctrl groups for SPI1 */
+/* SPI1 pinctrl */
 &pinctrl {
     spi1_default: spi1_default {
         group1 {
