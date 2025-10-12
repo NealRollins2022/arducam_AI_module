@@ -345,17 +345,12 @@ int main(void)
 		return -1;
 	}
 
-/* --- Configure manual CS (pin 25) --- */
-		const struct device *gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
-		if (!device_is_ready(gpio_dev)) {
-		    LOG_ERR("gpio0 not ready");
-		    return -1;
-		}
+	/* --- Configure manual CS (pin 25) --- */
+	const gpio_pin_t cs_pin = 25;
+	const gpio_flags_t cs_flags = GPIO_ACTIVE_LOW;
+	
+	rc = arducam_mega_set_cs_by_label(video, "gpio0", cs_pin, cs_flags);
 		
-		const gpio_pin_t cs_pin = 25;
-		const gpio_flags_t cs_flags = GPIO_ACTIVE_LOW;
-		
-		rc = arducam_mega_set_cs_by_dev(video, gpio_dev, cs_pin, cs_flags);
 	if (rc) {
 		LOG_ERR("Failed to configure manual CS (%s:%d): %d", gpio_label, cs_pin, rc);
 		/* We continue; driver will fall back to automatic CS if available. */
