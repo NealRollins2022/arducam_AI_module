@@ -1,4 +1,3 @@
-
 / {
     chosen {
         zephyr,console = &uart0;
@@ -9,19 +8,18 @@
     };
 };
 
-/* Enable GPIO0 for manual CS */
 &gpio0 {
     status = "okay";
 
+    /* gpio hog (manual CS) on port 0 pin 25 */
     cs_arducam0: cs_arducam0 {
-        gpios = <25 1>;   /* pin 25, active low */
         gpio-hog;
-        output-high;
+        gpios = <25 GPIO_ACTIVE_LOW>;
+        output-high;   /* start high */
         status = "okay";
     };
 };
 
-/* SPI1 node */
 &spi1 {
     status = "okay";
     pinctrl-0 = <&spi1_default>;
@@ -30,11 +28,12 @@
 
     arducam0: arducam_mega@0 {
         compatible = "arducam,mega";
-        reg = <0>;                  /* SPI CS handled manually */
+        reg = <0>;                  /* chip-select handled manually by gpio hog */
         spi-max-frequency = <8000000>;
         status = "okay";
     };
 };
+
 
 /* SPI1 pinctrl */
 &pinctrl {
