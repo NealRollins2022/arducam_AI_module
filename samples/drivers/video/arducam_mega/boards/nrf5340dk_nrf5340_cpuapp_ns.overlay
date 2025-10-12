@@ -13,9 +13,9 @@
     status = "okay";
 
     cs_arducam0: cs_arducam0 {
-        gpios = <25 GPIO_ACTIVE_LOW>;
-        gpio-hog;       /* Required so Zephyr configures it automatically */
-        output-high;    /* Start with CS high */
+        gpios = <&gpio0 25 GPIO_ACTIVE_LOW>; /* Correct phandle + pin */
+        gpio-hog;       /* Zephyr auto config */
+        output-high;    /* Start high */
         status = "okay";
     };
 };
@@ -36,7 +36,7 @@
     };
 };
 
-/* Optional pinctrl groups */
+/* Optional pinctrl groups for SPI1 */
 &pinctrl {
     spi1_default: spi1_default {
         group1 {
