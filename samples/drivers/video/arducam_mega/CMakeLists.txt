@@ -3,4 +3,12 @@ cmake_minimum_required(VERSION 3.20.0)
 list(APPEND ZEPHYR_EXTRA_MODULES C:/ncs/v2.7.0/modules/arducam)  # Replace with your exact path; use forward slashes for CMake compatibility
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(arducam_mega_sample)
+# -------------------------
+# Suppress macro expansion notes
+# -------------------------
+add_compile_options(
+    -fno-diagnostics-show-note-include-stack
+    -fno-diagnostics-show-caret
+    -fno-diagnostics-show-option
+)
 target_sources(app PRIVATE src/main.c)
