@@ -1029,11 +1029,13 @@ static int arducam_mega_init(const struct device *dev)
 
 	return ret;
 }
+#define ARDUCAM_SPI_FLAGS (SPI_OP_MODE_MASTER | SPI_WORD_SET(8))
+
 #define ARDUCAM_MEGA_INIT(inst)                                  \
     static const struct arducam_mega_config arducam_mega_cfg_##inst = { \
         .bus = SPI_DT_SPEC_INST_GET(inst,                        \
-                                    SPI_OP_MODE_MASTER | SPI_WORD_SET(8), \
-                                    0), /* no flags for nrf-spi */ \
+                                    ARDUCAM_SPI_FLAGS,           \
+                                    0), /* no delay */           \
     };                                                          \
                                                                 \
     static struct arducam_mega_data arducam_mega_data_##inst;   \
@@ -1043,6 +1045,7 @@ static int arducam_mega_init(const struct device *dev)
                           &arducam_mega_cfg_##inst,            \
                           POST_KERNEL, CONFIG_VIDEO_INIT_PRIORITY, \
                           &arducam_mega_driver_api);
+
 
 
 
