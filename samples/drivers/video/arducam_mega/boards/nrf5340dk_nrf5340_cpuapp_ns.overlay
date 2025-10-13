@@ -8,13 +8,13 @@
 };
 
 &gpio0 {
-    nonsecure = "yes";  /* allow Non-Secure app access to GPIO0 (CS pin) */
+  
 };
 
 &spi1 {
     compatible = "nordic,nrf-spim";
     status = "okay";
-    nonsecure = "yes";   /* allow Non-Secure app access to SPI1 */
+  
     pinctrl-0 = <&spi1_default>;
     pinctrl-1 = <&spi1_sleep>;
     pinctrl-names = "default", "sleep";
