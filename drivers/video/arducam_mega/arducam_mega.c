@@ -11,6 +11,7 @@
 #include <zephyr/device.h>
 #include <drivers/video.h>
 #include <zephyr/drivers/spi.h>
+#include <zephyr/drivers/gpio.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(mega_camera);
@@ -80,6 +81,10 @@ LOG_MODULE_REGISTER(mega_camera);
 K_THREAD_STACK_DEFINE(ac_stack_area, AC_STACK_SIZE);
 
 struct k_work_q ac_work_q;
+
+/* --- Manual CS config --- */
+#define ARDUCAM_CS_PIN 25
+static const struct device *cs_gpio_dev;
 
 /**
  * @struct mega_sdk_data
@@ -179,6 +184,21 @@ static uint8_t support_resolution[SUPPORT_RESOLUTION_NUM] = {
 	MEGA_RESOLUTION_UXGA,    MEGA_RESOLUTION_FHD,     MEGA_RESOLUTION_NONE,
 };
 
+/* --- Manual CS helpers --- */
+static inline void cs_select(void)
+{
+	if (cs_gpio_dev) {
+		(void)gpio_pin_set(cs_gpio_dev, ARDUCAM_CS_PIN, 0);
+	}
+}
+
+static inline void cs_deselect(void)
+{
+	if (cs_gpio_dev) {
+		(void)gpio_pin_set(cs_gpio_dev, ARDUCAM_CS_PIN, 1);
+	}
+}
+
 static int arducam_mega_write_reg(const struct spi_dt_spec *spec, uint8_t reg_addr, uint8_t value)
 {
 	uint8_t tries = 3;
@@ -193,9 +213,12 @@ static int arducam_mega_write_reg(const struct spi_dt_spec *spec, uint8_t reg_ad
 	struct spi_buf_set tx_bufs = {.buffers = tx_buf, .count = 2};
 
 	while (tries--) {
+		cs_select();
 		if (!spi_write_dt(spec, &tx_bufs)) {
+			cs_deselect();
 			return 0;
 		}
+		cs_deselect();
 		/* If writing failed wait 5ms before next attempt */
 		k_msleep(5);
 	}
@@ -227,7 +250,9 @@ static int arducam_mega_read_reg(const struct spi_dt_spec *spec, uint8_t reg_add
 	struct spi_buf_set rx_bufs = {.buffers = rx_buf, .count = 3};
 
 	while (tries--) {
+		cs_select();
 		ret = spi_transceive_dt(spec, &tx_bufs, &rx_bufs);
+		cs_deselect();
 		if (!ret) {
 			return value;
 		}
@@ -258,7 +283,11 @@ static int arducam_mega_read_block(const struct spi_dt_spec *spec, uint8_t *img_
 	};
 	struct spi_buf_set rx_bufs = {.buffers = rx_buf, .count = 2};
 
-	return spi_transceive_dt(spec, &tx_bufs, &rx_bufs);
+	cs_select();
+	int ret = spi_transceive_dt(spec, &tx_bufs, &rx_bufs);
+	cs_deselect();
+
+	return ret;
 }
 
 static int arducam_mega_await_bus_idle(const struct spi_dt_spec *spec, uint8_t tries)
@@ -982,6 +1011,21 @@ static int arducam_mega_init(const struct device *dev)
 	struct video_format fmt;
 	int ret = 0;
 
+	/* Initialize CS GPIO device and pin (manual CS) */
+	cs_gpio_dev = DEVICE_DT_GET(DT_NODELABEL(gpio0));
+	if (!device_is_ready(cs_gpio_dev)) {
+   	 return -ENODEV;
+	}
+
+	if (!cs_gpio_dev) {
+		LOG_ERR("Failed to bind gpio0 for CS");
+		/* proceed without manual CS, spi calls will run but likely fail if CS needed */
+	} else {
+		/* configure pin as output and set high (inactive) */
+		(void)gpio_pin_configure(cs_gpio_dev, ARDUCAM_CS_PIN, GPIO_OUTPUT_HIGH);
+		(void)gpio_pin_set(cs_gpio_dev, ARDUCAM_CS_PIN, 1);
+	}
+
 	if (!spi_is_ready_dt(&cfg->bus)) {
 		LOG_ERR("%s: device is not ready", cfg->bus.bus->name);
 		return -ENODEV;
@@ -1036,7 +1080,7 @@ static int arducam_mega_init(const struct device *dev)
 					    SPI_OP_MODE_MASTER | SPI_WORD_SET(8) |                 \
 						    SPI_CS_ACTIVE_HIGH | SPI_LINES_SINGLE |        \
 						    SPI_LOCK_ON,                                   \
-					    NULL),                                                 \
+					    0),                                                    \
 	};                                                                                         \
                                                                                                    \
 	static struct arducam_mega_data arducam_mega_data_##inst;                                  \
@@ -1045,5 +1089,5 @@ static int arducam_mega_init(const struct device *dev)
 			      &arducam_mega_cfg_##inst, POST_KERNEL, CONFIG_VIDEO_INIT_PRIORITY,   \
 			      &arducam_mega_driver_api);
 
-
 DT_INST_FOREACH_STATUS_OKAY(ARDUCAM_MEGA_INIT)
+
