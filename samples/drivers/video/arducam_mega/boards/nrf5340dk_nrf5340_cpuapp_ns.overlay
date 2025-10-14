@@ -1,3 +1,4 @@
+
 &i2c0 { status = "disabled"; };
 &spi0 { status = "disabled"; };
 &i2c1 { status = "disabled"; };
@@ -8,7 +9,12 @@
 };
 
 &gpio0 {
-  
+   cs_gpio25: cs_gpio25 {
+    compatible = "gpio-ctrl";
+    gpios = <25 GPIO_ACTIVE_HIGH>; // start high (inactive)
+    status = "okay";
+};
+
 };
 
 &spi1 {
@@ -18,8 +24,7 @@
     pinctrl-0 = <&spi1_default>;
     pinctrl-1 = <&spi1_sleep>;
     pinctrl-names = "default", "sleep";
-    cs-gpios = <&gpio0 25 GPIO_ACTIVE_LOW>;  /* keep CS here, not in child node */
-
+ 
     arducam0: arducam@0 {
         compatible = "arducam,mega";
         reg = <0>;
@@ -46,4 +51,5 @@
         };
     };
 };
+
 
