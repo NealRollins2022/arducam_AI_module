@@ -340,7 +340,7 @@ int main(void)
 	 /* Initialize video buffers and enqueue */
     for (i = 0; i < NUM_BUFFERS; i++) {
         video_buffers[i].buffer  = dma_bufs[i];
-        video_buffers[i].size = VIDEO_BUF_SIZE;
+        video_buffers[i].size =  DMA_BUF_SIZE;
         video_enqueue(video, VIDEO_EP_OUT, &video_buffers[i]);
     }
 
@@ -393,4 +393,5 @@ void serial_cb(const struct device *dev, void *user_data)
 		}
 	}
 }
+
 
