@@ -42,11 +42,14 @@ LOG_MODULE_REGISTER(main);
 
 #define MSG_SIZE 12
 /* queue to store up to 10 messages (aligned to 4-byte boundary) */
-#define VIDEO_BUF_SIZE 4096   // adjust to max FIFO size
+
 #define NUM_BUFFERS 3
+#define MAX_SPI_BURST 4096
+#define DMA_BUF_SIZE  (MAX_SPI_BURST + 8)
+
 
 /* DMA-safe buffers for video frames */
-static uint8_t dma_bufs[NUM_BUFFERS][VIDEO_BUF_SIZE] __aligned(4)
+static uint8_t dma_bufs[NUM_BUFFERS][DMA_BUF_SIZE] __aligned(4)
                          __attribute__((section(".dma")));
 
 /* Video buffer structs */
@@ -390,3 +393,4 @@ void serial_cb(const struct device *dev, void *user_data)
 		}
 	}
 }
+
